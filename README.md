@@ -7,5 +7,5 @@
 
 1. [GAN](./code/gan/gan.py)
 2. [CGAN](./code/cgan/cgan.py)
-3. [DCGAB](./code/dcgan/dcgan.py)
+3. [DCGAN](./code/dcgan/dcgan.py)
 

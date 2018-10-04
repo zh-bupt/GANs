@@ -1,5 +1,4 @@
 from tensorflow.examples.tutorials.mnist import input_data
-from tensorflow import random_normal_initializer
 from common.ops import *
 
 
@@ -25,7 +24,7 @@ def generator(z, labels, training=True):
 
     return h4
 
-def descriminator(images, lables, reuse=False, training=True):
+def discriminator(images, lables, reuse=False, training=True):
     if reuse:
         tf.get_variable_scope().reuse_variables()
 
@@ -73,8 +72,8 @@ sample_labels = sample_labels()
 
 with tf.variable_scope(tf.get_variable_scope()) as scope:
     G = generator(z, y)
-    D, D_logits = descriminator(images, y)
-    D_, D_logits_ = descriminator(G, y, reuse=True)
+    D, D_logits = discriminator(images, y)
+    D_, D_logits_ = discriminator(G, y, reuse=True)
     samples = sampler(z, y)
 
 d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(

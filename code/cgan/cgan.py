@@ -54,7 +54,7 @@ def generator(z, y, training=True):
     h2 = fully_connect(h2, 784, name='g_h2_fc')
     return tf.nn.sigmoid(h2)
 
-def descriminator(images, y, reuse=False, training=True):
+def discriminator(images, y, reuse=False, training=True):
     if reuse:
         tf.get_variable_scope().reuse_variables()
     h1_img = maxout(images, 240, name='d_h1_img_maxout')
@@ -90,8 +90,8 @@ sample_y = sample_labels()
 
 with tf.variable_scope(tf.get_variable_scope()) as scope:
     G = generator(z, y)
-    D, D_logits = descriminator(images, y)
-    D_, D_logits_ = descriminator(G, y, reuse=True)
+    D, D_logits = discriminator(images, y)
+    D_, D_logits_ = discriminator(G, y, reuse=True)
     samples = sampler(z, y)
 
 d_loss_real = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(

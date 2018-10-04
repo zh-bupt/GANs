@@ -8,6 +8,8 @@ import os
 
 sess = tf.InteractiveSession()
 
+
+epochs = 50000
 batch_size = 128
 Z_dim = 100
 
@@ -19,7 +21,7 @@ def get_weights(shape, name):
 def get_bias(shape, name):
     return tf.get_variable(name=name, shape=shape, initializer=tf.constant_initializer)
 
-# descriminater
+# discriminator
 X = tf.placeholder(tf.float32, shape=[None, 784], name='X')
 
 D_W1 = get_weights([784, 128], 'D_W1')
@@ -46,15 +48,15 @@ def generator(z):
     G_A2 = tf.nn.sigmoid(tf.matmul(G_A1, G_W2) + G_b2)
     return G_A2
 
-def descriminater(x):
+def discriminator(x):
     D_A1 = tf.nn.relu(tf.matmul(x, D_W1) + D_b1)
     D_logit = tf.matmul(D_A1, D_W2) + D_b2
     D_A2 = tf.nn.sigmoid(D_logit)
     return D_A2, D_logit
 
 G_sample = generator(Z)
-D_real, D_real_logit = descriminater(X)
-D_fake, D_fake_logit = descriminater(G_sample)
+D_real, D_real_logit = discriminator(X)
+D_fake, D_fake_logit = discriminator(G_sample)
 
 # D_loss = -tf.reduce_mean(tf.log(D_real) + tf.log(1. - D_fake))
 # G_loss = -tf.reduce_mean(tf.log(D_fake))
@@ -69,6 +71,9 @@ D_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
     labels=tf.zeros_like(D_fake_logit)
 ))
 D_loss = D_loss_real + D_loss_fake
+
+# 注意此处使用了单侧标签平滑
+# 即使用一个目标值1−α为真样本， 并且使用目标值0+β为伪样本
 G_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
     logits=D_fake_logit,
     labels=0.9 * tf.ones_like(D_fake_logit)
@@ -100,7 +105,7 @@ if __name__ == '__main__':
         os.makedirs('./out/')
     num = 0
     saver = tf.train.Saver()
-    for i in range(10000):
+    for i in range(epochs):
         if i % 1000 == 0:
             samples = sess.run(G_sample, feed_dict={Z: sample_Z(16, Z_dim)})
             fig = plot_result(samples)
