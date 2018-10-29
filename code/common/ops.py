@@ -69,8 +69,8 @@ def sample_labels():
     return labels
 
 def save_images(images, size, path):
-    img = (images + 1.0) / 2.0
-    h, w = img.shape[1], img.shape[2]
+    # img = (images + 1.0) / 2.0
+    h, w = images.shape[1], images.shape[2]
 
     merge_img = np.zeros((h * size[0], w * size[1], 3))
     for idx, image in enumerate(images):

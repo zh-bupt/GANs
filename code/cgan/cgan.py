@@ -1,46 +1,19 @@
 import os
-
+import sys
+sys.path.append(r'/home/wxr/zhsworkingspace/code')
 from common.ops import *
 from tensorflow.examples.tutorials.mnist import input_data
 import time
 
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True
+iter = 80000
+batch_size = 128
+lr = 0.0002
+beta1=0.5
 
-def my_generator(z, y, training=True):
-    h1_z = fully_connect(z, 256, name='g_h1_z_fc')
-    h1_z = tf.nn.relu(tf.layers.batch_normalization(h1_z, training=training, name='g_h1_z_bn'))
-    h1_y = fully_connect(y, 256, name='g_h1_y_fc')
-    h1_y = tf.nn.relu(tf.layers.batch_normalization(h1_y, training=training, name='g_h1_y_bn'))
-    h1 = tf.concat([h1_z, h1_y], axis=1)
-
-    h2 = fully_connect(h1, 512, name='g_h2_fc')
-    h2 = tf.nn.relu(tf.layers.batch_normalization(h2, training=training, name='g_h2_bn'))
-
-    h3 = fully_connect(h2, 1024, name='g_h3_fc')
-    h3 = tf.nn.relu(tf.layers.batch_normalization(h3, training=training, name='g_h3_bn'))
-
-    h4 = fully_connect(h3, 784, name='g_h4_fc')
-
-    return tf.nn.sigmoid(h4)
-
-def my_descriminator(images, y, reuse=False, training=True):
-    if reuse:
-        tf.get_variable_scope().reuse_variables()
-    h1_img = fully_connect(images, 1024, name='d_h1_img_fc')
-    h1_img = leaky_relu(h1_img)
-    h1_y = fully_connect(y, 1024, name='d_h1_y_fc')
-    h1_y = leaky_relu(h1_y)
-    h1 = tf.concat([h1_img, h1_y], axis=1)
-
-    h2 = fully_connect(h1, 512, name='d_h2_fc')
-    h2 = tf.layers.batch_normalization(h2, training=training, name='d_h2_bn')
-    h2 = leaky_relu(h2)
-
-    h3 = fully_connect(h2, 256, name='d_h3_fc')
-    h3 = tf.layers.batch_normalization(h3, training=training, name='d_h3_bn')
-    h3 = leaky_relu(h3)
-
-    h4 = fully_connect(h3, 1, name='d_h4_fc')
-    return tf.nn.sigmoid(h4), h4
+mnist = input_data.read_data_sets('../MNIST/', one_hot=True)
+train = mnist.train
 
 
 def generator(z, y, training=True):
@@ -73,14 +46,8 @@ def sampler(z, y, training=False):
     return generator(z, y, training=training)
 
 
-iter = 10000
-batch_size = 128
-
-mnist = input_data.read_data_sets('../MNIST/', one_hot=True)
-train = mnist.train
-
-
 global_step = tf.Variable(0, name='global_step', trainable=False)
+increment_op = tf.assign_add(global_step, tf.constant(1))
 
 z = tf.placeholder(tf.float32, [None, 100], name='z')
 y = tf.placeholder(tf.float32, [None, 10], name='y')
@@ -101,9 +68,13 @@ d_loss_fake = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
     logits=D_logits_, labels=tf.zeros_like(D_logits_)
 ))
 d_loss = d_loss_real + d_loss_fake
+tf.summary.scalar('discriminator loss', d_loss)
+
 g_loss = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(
     logits=D_logits_, labels=tf.ones_like(D_logits_)
 ))
+tf.summary.scalar('generator loss', g_loss)
+merge_summary = tf.summary.merge_all()
 
 vars = tf.trainable_variables()
 d_vars = [var for var in vars if 'd_' in var.name]
@@ -111,17 +82,18 @@ g_vars = [var for var in vars if 'g_' in var.name]
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    d_optimizer = tf.train.AdamOptimizer().\
+    d_optimizer = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.5).\
         minimize(d_loss, var_list=d_vars, global_step=global_step)
-    g_optimizer = tf.train.AdamOptimizer().\
+    g_optimizer = tf.train.AdamOptimizer(learning_rate=lr, beta1=0.5).\
         minimize(g_loss, var_list=g_vars, global_step=global_step)
 
 samples_path = './out'+ time.strftime('_%Y-%m-%d_%H:%M:%S', time.localtime()) +'/'
 if not os.path.exists(samples_path):
     os.makedirs(samples_path)
 
-with tf.Session() as sess:
+with tf.Session(config=config) as sess:
     saver = tf.train.Saver()
+    summary_writer = tf.summary.FileWriter('./summary', sess.graph)
     sess.run(tf.global_variables_initializer())
     for i in range(iter):
         batch = mnist.train.next_batch(batch_size)
@@ -134,7 +106,12 @@ with tf.Session() as sess:
         sess.run(g_optimizer, feed_dict={
             images: batch_images, y: batch_labels, z: batch_z
         })
-        if i % 100 == 0:
+
+        train_summary = sess.run(
+            merge_summary, feed_dict={images: batch_images, y: batch_labels, z: batch_z}
+        )
+        summary_writer.add_summary(train_summary, i)
+        if i % 1000 == 0:
             d_err = d_loss.eval(feed_dict={
                 images: batch_images, y: batch_labels, z: batch_z
             })
