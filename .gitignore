@@ -107,6 +107,8 @@ venv.bak/
 .mypy_cache/
 
 # code
-**/checkpoint_dir/
+**/checkpoint_dir*/
 **/out*/
+**/summary*/
+/code/cifar-10/
 **/.idea/
